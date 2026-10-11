@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Platine</title>
+<style>
+:root{--bg1:#fde6f1;--bg2:#e7e4ff;--bg3:#dff1fb;--ink:#3d3a5c;--muted:#7a7799;--card:rgba(255,255,255,.62);--a1:#ff9cc5;--a2:#8f9bff;--wave:#d9d4ef;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;min-height:100%;color:var(--ink);background:#f1e9fb linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3)) fixed;font:16px/1.4 ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif}
+[hidden]{display:none!important}
+.screen{min-height:100vh;display:flex;flex-direction:column;padding:16px;max-width:560px;margin:0 auto}
+#home{justify-content:center}
+.card{background:var(--card);border-radius:28px;padding:28px 22px;text-align:center;backdrop-filter:blur(8px)}
+h1{margin:0 0 4px;font-size:2rem;font-weight:700;letter-spacing:-.01em}
+.sub{margin:0 0 24px;color:var(--muted)}
+.btn{display:block;width:100%;border:0;border-radius:999px;padding:15px 20px;font:inherit;font-weight:600;color:#fff;background:linear-gradient(90deg,var(--a1),var(--a2));cursor:pointer}
+.btn.ghost{color:var(--ink);background:#fff;box-shadow:0 0 0 2px #e4def6 inset}
+.btn:disabled{opacity:.6}
+.name{min-height:1.4em;margin:14px 0;color:var(--muted);word-break:break-all}
+.err{color:#c0386b;margin:10px 0 0;min-height:1.2em}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0 12px}
+#title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#close{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:var(--ink);font-size:1.2rem;cursor:pointer}
+.stage{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:stretch}
+.cv{position:relative;height:36vh;min-height:210px;background:var(--card);border-radius:24px;overflow:hidden}
+canvas{width:100%;height:100%;display:block;touch-action:none}
+.pitch{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+.pbox{position:relative;width:44px;flex:1;min-height:180px}
+#pitch{position:absolute;width:190px;height:44px;left:calc(50% - 95px);top:calc(50% - 22px);transform:rotate(-90deg);accent-color:#9a8bff;margin:0}
+.mini{border:0;border-radius:999px;background:#fff;color:var(--ink);padding:6px 10px;font:inherit;font-size:.8rem;cursor:pointer}
+.panel{background:var(--card);border-radius:24px;padding:16px;margin-top:12px}
+.read{display:flex;justify-content:space-around;text-align:center;margin-bottom:14px}
+.read b{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums}
+.read small{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px 0}
+.chip{border:0;border-radius:999px;background:#fff;color:var(--ink);padding:9px 16px;font:inherit;cursor:pointer}
+.chip.on{color:#fff;background:linear-gradient(90deg,var(--a1),var(--a2))}
+.chk{display:flex;align-items:center;gap:10px;margin:10px 4px 4px}
+.chk input{width:20px;height:20px;accent-color:#9a8bff}
+#ms{width:100%;accent-color:#9a8bff}
+.stat{margin:10px 4px 0;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<main id="home" class="screen">
+  <div class="card">
+    <h1>Platine</h1>
+    <p class="sub">Ton téléphone devient le vinyle.</p>
+    <button id="pick" class="btn ghost">Choisir un fichier audio</button>
+    <input id="file" type="file" accept="audio/*,.wav" hidden>
+    <p id="name" class="name"></p>
+    <button id="play" class="btn" hidden>Lire</button>
+    <p id="err" class="err"></p>
+  </div>
+</main>
+
+<main id="player" class="screen" hidden>
+  <header><span id="title"></span><button id="close" aria-label="Fermer">✕</button></header>
+  <div class="stage">
+    <div class="cv"><canvas id="wave"></canvas></div>
+    <div class="pitch">
+      <span>+8 %</span>
+      <div class="pbox"><input id="pitch" type="range" min="-8" max="8" step="0.1" value="0" aria-label="Réglage de vitesse"></div>
+      <span>−8 %</span>
+      <button id="preset" class="mini">0,0 %</button>
+    </div>
+  </div>
+  <section class="panel">
+    <div class="read">
+      <div><b id="rpm">0,0</b><small>tr/min</small></div>
+      <div><b id="rt">0,00×</b><small>vitesse</small></div>
+      <div><b id="tm">0:00</b><small id="dur"></small></div>
+    </div>
+    <div class="row">
+      <button class="chip on" data-ref="33.3333">33 tr</button>
+      <button class="chip" data-ref="45">45 tr</button>
+      <button class="chip" id="inv">Sens normal</button>
+      <button class="chip" id="cal">Calibrer à 33 tr</button>
+    </div>
+    <label class="chk">Lissage <input id="sm" type="range" min="0.05" max="1" step="0.05" value="0.25" style="flex:1;width:auto;height:auto"> <span id="smv">0,25 s</span></label>
+    <label class="chk"><input id="man" type="checkbox"> Mode essai (sans platine)</label>
+    <div id="mp" hidden>
+      <input id="ms" type="range" min="-60" max="60" step="0.5" value="0" aria-label="Vitesse d'essai">
+      <div class="row">
+        <button class="chip" data-m="-33.3333">−33</button>
+        <button class="chip" data-m="0">0</button>
+        <button class="chip" data-m="33.3333">33</button>
+        <button class="chip" data-m="45">45</button>
+      </div>
+    </div>
+    <p id="stat" class="stat"></p>
+    <p id="dbg" class="stat"></p>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'),f1=(v,n)=>v.toFixed(n).replace('.',',');
+const cv=$('#wave'),g=cv.getContext('2d');
+let ctx,buf,rev,peaks,file,pos=0,rate=0,rpmS=0,src=null,srcDir=0,lastT=0,raf=0,wake=null,base,played,W=0,H=0,D=1,ink='#333',t0=0;
+let sm=.25,hist=[],cal=1,ref=100/3,inv=false,manual=false,mRpm=0,pitch=0,sRpm=0,got=false,ev=0,dbg='Aucune mesure reçue du capteur';
+const iOS=typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function';
+const show=id=>['home','player'].forEach(s=>$('#'+s).hidden=s!==id);
+
+/* Mémoire du dernier fichier */
+const idb=()=>new Promise((ok,ko)=>{const r=indexedDB.open('platine',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
+async function save(f){try{const d=await idb();d.transaction('f','readwrite').objectStore('f').put(f,'last')}catch(e){}}
+async function load(){try{const d=await idb();return await new Promise(ok=>{const q=d.transaction('f').objectStore('f').get('last');q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)})}catch(e){return null}}
+
+/* Accueil */
+function setFile(f,keep=true){file=f;$('#name').textContent=f.name;$('#play').hidden=false;$('#pick').textContent='Choisir un autre fichier';$('#err').textContent='';if(keep)save(f)}
+$('#pick').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{const f=e.target.files[0];if(f)setFile(f)};
+load().then(f=>{if(f&&f.name)setFile(f,false)});
+
+$('#play').onclick=async()=>{
+  const b=$('#play');
+  ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();
+  ctx.resume();
+  const perm=iOS?DeviceMotionEvent.requestPermission().catch(()=>'denied'):null;
+  b.disabled=true;b.textContent='Chargement…';
+  try{buf=await ctx.decodeAudioData(await file.arrayBuffer())}
+  catch(e){b.disabled=false;b.textContent='Lire';$('#err').textContent='Fichier illisible. Choisis un fichier .wav ou .mp3.';return}
+  rev=ctx.createBuffer(buf.numberOfChannels,buf.length,buf.sampleRate);
+  for(let c=0;c<buf.numberOfChannels;c++){const a=buf.getChannelData(c),r=rev.getChannelData(c),n=a.length;for(let i=0;i<n;i++)r[i]=a[n-1-i]}
+  peaks=mkPeaks();pos=0;rpmS=0;
+  if(perm)await perm;
+  $('#title').textContent=file.name;$('#dur').textContent='sur '+fmt(buf.duration);
+  show('player');requestAnimationFrame(layout);
+  startMotion();lock();lastT=performance.now();raf=requestAnimationFrame(tick);
+};
+
+/* Forme d'onde */
+function mkPeaks(){const N=900,bs=buf.length/N,ch=[...Array(buf.numberOfChannels)].map((_,i)=>buf.getChannelData(i)),p=new Float32Array(N);let mx=0;
+  for(let i=0;i<N;i++){let m=0;const s=Math.floor(i*bs),e=Math.floor((i+1)*bs),st=Math.max(1,Math.floor((e-s)/150));for(const d of ch)for(let j=s;j<e;j+=st){const v=Math.abs(d[j]);if(v>m)m=v}p[i]=m;if(m>mx)mx=m}
+  for(let i=0;i<N;i++)p[i]/=mx||1;return p}
+function layout(){if(!peaks||$('#player').hidden)return;D=devicePixelRatio||1;const r=cv.getBoundingClientRect();W=cv.width=Math.round(r.width*D);H=cv.height=Math.round(r.height*D);ink=css('--ink');
+  const mk=f=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle=f(x);const n=peaks.length,bw=W/n;for(let i=0;i<n;i++){const h=Math.max(3*D,peaks[i]*H*.86);x.fillRect(i*bw,(H-h)/2,Math.max(1,bw-D*.6),h)}return c};
+  base=mk(()=>css('--wave'));
+  played=mk(x=>{const l=x.createLinearGradient(0,0,W,0);l.addColorStop(0,css('--a1'));l.addColorStop(1,css('--a2'));return l})}
+function draw(){if(!base)return;g.clearRect(0,0,W,H);g.drawImage(base,0,0);const x=pos/buf.duration*W;if(x>=1)g.drawImage(played,0,0,x,H,0,0,x,H);g.fillStyle=ink;g.fillRect(x-1.5*D,0,3*D,H)}
+addEventListener('resize',layout);
+cv.onpointerdown=e=>{if(!buf)return;const r=cv.getBoundingClientRect();pos=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*buf.duration;stopSrc()};
+
+/* Moteur audio */
+function startSrc(d){const s=ctx.createBufferSource(),gn=ctx.createGain(),t=ctx.currentTime;s.buffer=d>0?buf:rev;s.playbackRate.value=Math.abs(rate);
+  gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(1,t+.012);s.connect(gn).connect(ctx.destination);
+  const off=d>0?pos:buf.duration-pos;s.start(0,Math.min(off,buf.duration-.001));s._g=gn;s.onended=()=>{if(src===s)src=null};src=s;srcDir=d}
+function stopSrc(){const s=src;src=null;srcDir=0;if(!s)return;s.onended=null;const t=ctx.currentTime;
+  try{s._g.gain.cancelScheduledValues(t);s._g.gain.setValueAtTime(s._g.gain.value,t);s._g.gain.linearRampToValueAtTime(0,t+.015);s.stop(t+.02)}catch(e){}}
+function tick(t){raf=requestAnimationFrame(tick);const dt=Math.min(.1,(t-lastT)/1000);lastT=t;
+  const raw=manual?mRpm:(inv?-sRpm:sRpm);rpmS+=(raw-rpmS)*Math.min(1,dt/sm);
+  const e=Math.abs(rpmS)<1.5?0:rpmS;rate=Math.max(-4,Math.min(4,e/ref*(1+pitch/100)));
+  const dur=buf.duration;if((pos<=0&&rate<0)||(pos>=dur&&rate>0))rate=0;
+  pos=Math.max(0,Math.min(dur,pos+rate*dt));
+  const d=rate>.03?1:rate<-.03?-1:0;
+  if(d!==srcDir){stopSrc();if(d)startSrc(d)}
+  if(src)src.playbackRate.setTargetAtTime(Math.abs(rate),ctx.currentTime,.02);
+  $('#rpm').textContent=f1(e,1);$('#rt').textContent=f1(rate,2)+'×';$('#tm').textContent=fmt(pos);$('#dbg').textContent=dbg;draw()}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&ctx)stopSrc()});
+
+/* Capteur de rotation */
+function onMotion(e){const rr=e.rotationRate,a=e.accelerationIncludingGravity;if(!rr)return;if(!got){got=true;status()}
+  let w;if(a&&(a.x||a.y||a.z)){const n=Math.hypot(a.x,a.y,a.z);w=((rr.beta||0)*a.x+(rr.gamma||0)*a.y+(rr.alpha||0)*a.z)/n;if(iOS)w=-w}else w=rr.alpha||0;
+  hist.push(w);if(hist.length>5)hist.shift();sRpm=-[...hist].sort((p,q)=>p-q)[hist.length>>1]/6*cal;ev++;dbg=ev+' mesures, rotation '+f1(Math.abs(w),0)+' °/s'}
+function status(){$('#stat').textContent=manual?'Mode essai : la platine est ignorée.':got?'Capteur de rotation actif.':'En attente du capteur… Si rien ne bouge, utilise le mode essai.'}
+function startMotion(){got=false;sRpm=0;ev=0;dbg='Aucune mesure reçue du capteur';addEventListener('devicemotion',onMotion);clearTimeout(t0);status();t0=setTimeout(()=>{if(!got&&!manual)$('#stat').textContent='Capteur indisponible sur ce lien. Utilise le mode essai.'},2000)}
+async function lock(){try{wake=await navigator.wakeLock.request('screen')}catch(e){}}
+
+/* Commandes */
+document.querySelectorAll('[data-ref]').forEach(b=>b.onclick=()=>{ref=+b.dataset.ref;document.querySelectorAll('[data-ref]').forEach(x=>x.classList.toggle('on',x===b))});
+$('#inv').onclick=()=>{inv=!inv;$('#inv').textContent=inv?'Sens inversé':'Sens normal'};
+try{cal=+localStorage.getItem('cal')||1}catch(e){}
+$('#cal').onclick=()=>{const m=Math.abs(rpmS)/cal;if(manual||m<3){$('#stat').textContent='Lance la platine à 33 tr/min, mode essai coupé, puis appuie sur Calibrer.';return}
+  cal=Math.max(.05,Math.min(30,33.3333/m));try{localStorage.setItem('cal',cal)}catch(e){}$('#stat').textContent='Calibré : facteur ×'+f1(cal,2)+'.'};
+$('#pitch').oninput=e=>{pitch=+e.target.value;$('#preset').textContent=(pitch>0?'+':'')+f1(pitch,1)+' %'};
+$('#preset').onclick=()=>{pitch=0;$('#pitch').value=0;$('#preset').textContent='0,0 %'};
+$('#man').onchange=e=>{manual=e.target.checked;$('#mp').hidden=!manual;if(!manual){mRpm=0;$('#ms').value=0}status()};
+$('#ms').oninput=e=>{mRpm=+e.target.value};
+$('#sm').oninput=e=>{sm=+e.target.value;$('#smv').textContent=f1(sm,2)+' s'};
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mRpm=+b.dataset.m;$('#ms').value=mRpm});
+$('#close').onclick=()=>{cancelAnimationFrame(raf);stopSrc();removeEventListener('devicemotion',onMotion);clearTimeout(t0);try{wake&&wake.release()}catch(e){}wake=null;
+  buf=rev=peaks=base=played=null;show('home');$('#play').disabled=false;$('#play').textContent='Lire'};
+</script>
+</body>
+</html>
